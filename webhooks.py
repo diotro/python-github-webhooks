@@ -42,7 +42,8 @@ def index():
     """
 
     path = normpath(abspath(dirname(__file__)))
-
+    logging.info("Webhook received")
+    print request.data
     # Only POST is implemented
     if request.method != 'POST':
         abort(501)
@@ -65,7 +66,6 @@ def index():
                 break
         else:
             abort(403)
-
     # Enforce secret
     secret = config.get('enforce_secret', '')
     if secret:
@@ -93,15 +93,25 @@ def index():
                 abort(403)
 
     # Implement ping
-    event = request.headers.get('X-GitHub-Event', 'ping')
+    event = request.headers.get('X-GitHub-Event', '')  # was , 'ping'
     if event == 'ping':
         return dumps({'msg': 'pong'})
-
+    else:
+        #return dumps({'msg': 'hooked'})
+        logging.info("not github")
+   
     # Gather data
     try:
         payload = loads(request.data)
     except:
         abort(400)
+
+    if 'Entity' in payload:
+        if 'CommentID' in payload['Entity']:
+            event = 'targetprocess_comment'
+        if 'ChangedFields' in payload:
+            if 'EndDate' in payload['ChangedFields'] and payload['Entity']['EntityStateName'] == 'Done':
+                event = 'targetprocess_done'
 
     # Determining the branch is tricky, as it only appears for certain event
     # types an at different levels
@@ -133,6 +143,9 @@ def index():
     # so let's be safe
     name = payload['repository']['name'] if 'repository' in payload else None
 
+
+    ## TODO - event is None?
+
     meta = {
         'name': name,
         'branch': branch,
@@ -162,7 +175,7 @@ def index():
     # Run scripts
     ran = {}
     for s in scripts:
-
+        print "Running %s script with %s tmp and event %s" % (s, tmpfile, event)
         proc = Popen(
             [s, tmpfile, event],
             stdout=PIPE, stderr=PIPE
@@ -182,7 +195,7 @@ def index():
             ))
 
     # Remove temporal file
-    remove(tmpfile)
+    # remove(tmpfile)
 
     info = config.get('return_scripts_info', False)
     if not info:
