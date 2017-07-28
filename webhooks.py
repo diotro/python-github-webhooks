@@ -110,8 +110,8 @@ def index():
         if 'CommentID' in payload['Entity']:
             event = 'targetprocess_comment'
         if 'ChangedFields' in payload:
-            if 'EndDate' in payload['ChangedFields'] and payload['Entity']['EntityStateName'] == 'Done':
-                event = 'targetprocess_done'
+            if 'EntityStateName' in payload['ChangedFields']:
+                event = 'targetprocess_state_change'
 
     # Determining the branch is tricky, as it only appears for certain event
     # types an at different levels
